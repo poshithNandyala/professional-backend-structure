@@ -1,0 +1,25 @@
+{
+  "name": "proffesional-backend-structure",
+  "version": "1.0.0",
+  "description": "a proffesional backend structure",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": [
+    "backend",
+    "javascript"
+  ],
+  "author": "poshith",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "mongoose": "^8.7.1"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}
