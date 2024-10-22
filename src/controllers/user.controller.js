@@ -253,10 +253,149 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
+const changeCurrentpassword = asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id);
+    const isPasswordMatch = await user.isPasswordCorrect(currentPassword);
+    if (!isPasswordMatch) {
+        throw new ApiError(400, "INCORRECT PASSWORD");
+    }
+    user.password = newPassword;
+    await user.save();
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            null,
+            "PASSWORD CHANGED SUCCESSFULLY"
+        )
+    )
+}
+)
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            req.user,
+            "USER DATA FETCHED SUCCESSFULLY"
+        )
+    )
+})
+
+const UpdateAccountDetails = asyncHandler(async (req, res) => {
+    // Function to update account details (fullName and email) for the logged-in user
+    // Destructuring the fullName and email from the request body
+    const { fullName, email } = req.body;
+    // console.log(fullName, email)
+    // Validate that both fullName and email are provided
+    if (!fullName || !email) {
+        // Throw an error with validation messages if any field is missing
+        throw new ApiError(400, "Validation Error", [
+            { field: "fullName", message: "Full name is required" },
+            { field: "email", message: "Email is required" }
+        ]);
+    }
+
+    // Find and update the user by their ID (retrieved from the request)
+    // - $set is used to update only the specified fields (fullName and email)
+    // - { new: true } ensures that the updated user object is returned
+    // - runValidators: true ensures the data is validated according to the User model schema
+    const updatedUser = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: { fullName, email } },
+        { new: true, runValidators: true }
+    ).select("-password"); // Exclude the password field from the returned user object
+
+    // Return a successful response with the updated user object and a success message
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updatedUser, // Include updated user details in the response
+            "ACCOUNT DETAILS UPDATED SUCCESSFULLY"
+        )
+    );
+});
+
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+    
+    const avatarLocalPath = req.file?.path;
+
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Please select an image");
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    
+    if (!avatar.url) {
+        throw new ApiError(500, "Cloudinary error");
+    }
+
+    const updateUser = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                avatar: avatar.url
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password -refreshToken"  )
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updateUser,
+            "AVATAR UPDATED SUCCESSFULLY"
+        )
+    )
+})
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+
+    const coverImageLocalPath = req.file?.path;
+
+    if (!coverImageLocalPath) {
+        throw new ApiError(400, "Please select an image");
+    }
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+    if (!coverImage.url) {
+        throw new ApiError(500, "Cloudinary error");
+    }
+
+    const updateUser = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                coverImage: coverImage.url
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password -refreshToken")
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updateUser,
+            "COVER IMAGE UPDATED SUCCESSFULLY"
+        )
+    )
+
+})
 
 export {
     registerUser,
     loginUser,
     logOutUser,
-    refreshAcessToken
+    refreshAccessToken,
+    changeCurrentpassword,
+    getCurrentUser,
+    UpdateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage
 }
