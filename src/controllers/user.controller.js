@@ -4,6 +4,7 @@ import { User } from '../models/user.model.js';
 import { uploadOnCloudinary } from '../utils/cloudinary.js'
 import { ApiResponse } from '../utils/ApiResponse.js';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -318,7 +319,7 @@ const UpdateAccountDetails = asyncHandler(async (req, res) => {
 
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    
+
     const avatarLocalPath = req.file?.path;
 
     if (!avatarLocalPath) {
@@ -326,7 +327,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath);
-    
+
     if (!avatar.url) {
         throw new ApiError(500, "Cloudinary error");
     }
@@ -341,7 +342,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         {
             new: true
         }
-    ).select("-password -refreshToken"  )
+    ).select("-password -refreshToken")
     //delete old image from cloudinary
     return res.status(200).json(
         new ApiResponse(
@@ -477,8 +478,72 @@ const getUserChannelprofile = asyncHandler(async (req, res) => {
             channel[0],
             "CHANNEL FETCHED SUCCESSFULLY"
         )
-    )
+        )
 })
+
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+    // Start an aggregation query on the User collection
+    const user = User.aggregate([
+        {
+            // Match the document where the user's _id is equal to the id from the request
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id), // Convert req.user._id to ObjectId
+            }
+        },
+        {
+            // Perform a $lookup to join the 'videos' collection with the 'User' collection
+            $lookup: {
+                from: "videos", // Collection to join (videos collection)
+                localField: "watchHistory", // Field from the 'User' collection (an array of video IDs)
+                foreignField: "_id", // Field from the 'videos' collection (_id field of each video)
+                as: "watchHistory", // Output field name where the joined data will be stored (as 'watchHistory')
+                // Sub-pipeline inside the $lookup for the 'videos' collection
+                pipeline: [
+                    {
+                        // Another $lookup to join the 'users' collection with the 'videos' collection to get video owner info
+                        $lookup: {
+                            from: "users", // Collection to join (users collection)
+                            localField: "owner", // Field from 'videos' collection (owner's user ID)
+                            foreignField: "_id", // Field from 'users' collection (_id of the owner)
+                            as: "owner", // Output field name for the joined owner data
+                            // Sub-pipeline to control which fields are returned from the 'users' collection
+                            pipeline: [
+                                {
+                                    // Use $project to return only specific fields from the owner document
+                                    $project: {
+                                        fullName: 1, // Include the owner's fullName
+                                        username: 1, // Include the owner's username
+                                        avatar: 1    // Include the owner's avatar (profile picture)
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        // Add a new field 'owner' to each video document, taking the first element from the 'owner' array
+                        $addFields: {
+                            owner: {
+                                $first: "$owner" // Use the $first operator to take the first element from the 'owner' array
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]);
+
+    // Send the response back to the client
+    return res
+        .status(200) // HTTP status 200 means "OK"
+        .json(
+            new ApiResponse( // Use a custom ApiResponse object to format the response
+                200, // Status code
+                user[0].watchhistory, // Return the user's watch history from the first user in the result
+                "WATCH HISTORY FETCHED SUCCESSFULLY" // Message to indicate successful retrieval
+            )
+        );
+});
 
 export {
     registerUser,
@@ -490,5 +555,6 @@ export {
     UpdateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getUserChannelprofile
+    getUserChannelprofile,
+    getWatchHistory
 }
