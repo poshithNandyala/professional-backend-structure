@@ -388,6 +388,98 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
 })
 
+
+const getUserChannelprofile = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+
+    // Check if username was provided
+    if (!username?.trim()) {
+        throw new ApiError(400, "Please provide username");
+    }
+
+    // Perform an aggregation operation on the 'User' collection
+    const channel = await User.aggregate([
+        {
+            // Match the user by username (convert it to lowercase for case-insensitive search)
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            // First lookup to join 'User' collection with 'subscriptions' to get subscribers (people subscribed to this channel)
+            $lookup: {
+                from: "subscriptions",          // 'subscriptions' collection
+                localField: "_id",              // '_id' of the user in 'User' collection
+                foreignField: "channel",        // 'channel' field in 'subscriptions' (the channel they are subscribed to)
+                as: "subscribers"               // Result will be stored in the 'subscribers' field
+            }
+        },
+        {
+            // Second lookup to join 'User' with 'subscriptions' to get the channels the user has subscribed to
+            $lookup: {
+                from: "subscriptions",          // 'subscriptions' collection again
+                localField: "_id",              // '_id' of the user
+                foreignField: "subscriber",     // 'subscriber' field in 'subscriptions' (the user who subscribed)
+                as: "subscribedTo"              // Result will be stored in 'subscribedTo' field
+            }
+        },
+        {
+            // Add additional fields to the result document
+            $addFields: {
+                // 'subscribersCount' is the size of the 'subscribers' array
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                // 'channelsSubscribedToCount' is the size of the 'subscribedTo' array
+                channelsSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                // 'isSubscribed' checks if the current logged-in user is subscribed to the channel
+                isSubscribed: {
+                    $cond: {
+                        if: {
+                            // Checks if the current user ID is in the 'subscribers.subscriber' array
+                            $in: [req.user?._id, "$subscribers.subscriber"]
+                        },
+                        then: true,  // If user is subscribed, set 'isSubscribed' to true
+                        else: false  // Otherwise, set it to false
+                    }
+                }
+            }
+        },
+        {
+            // Project (select) the fields to include in the final result
+            $project: {
+                fullName: 1,                      // Include the user's full name
+                username: 1,                      // Include the username
+                email: 1,                         // Include the email
+                subscribersCount: 1,              // Include the count of subscribers
+                channelsSubscribedToCount: 1,     // Include the count of channels the user has subscribed to
+                isSubscribed: 1,                  // Include whether the current user is subscribed or not
+                coverImage: 1,                    // Include the user's cover image
+                avatar: 1                         // Include the user's avatar
+            }
+        }
+    ])
+
+    // If no channel was found, throw an error
+    if (!channel?.length) {
+        throw new ApiError(404, "Channel not found");
+    }
+
+    // console.log(channel)
+
+    // Return the channel profile
+    return res
+        .status(200)
+        .json(new ApiResponse(
+            200,
+            channel[0],
+            "CHANNEL FETCHED SUCCESSFULLY"
+        )
+    )
+})
+
 export {
     registerUser,
     loginUser,
@@ -397,5 +489,6 @@ export {
     getCurrentUser,
     UpdateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannelprofile
 }
