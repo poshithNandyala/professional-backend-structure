@@ -77,12 +77,15 @@ npm run dev
 
 ## 🧩 Customization
 
-This boilerplate is designed to be easily extendable:
+This boilerplate is designed to be easily extendable and adaptable for different media applications.
+
+🛠️ **Note:** This backend was originally built for a YouTube-like application. You can customize it as needed for your own use case—whether it's a media-sharing platform, streaming service, or educational portal.
 
 1. Add new models to `src/models/`
 2. Register new routes in `src/routes/`
 3. Create controllers in `src/controllers/` to handle business logic
 4. Add helper utilities and services in `src/utils/`
+
 
 ## 📸 Example Use Case
 
@@ -97,9 +100,9 @@ This is a perfect starting point for:
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-## 📄 License
+## 🙌 A Small Note
 
-This project is open source and available under the MIT License.
+This is my little contribution to help make your development journey a bit easier. Feel free to use, customize, and build amazing things with it!
 
 ## 💬 Contact
 
